@@ -9,14 +9,14 @@
 
 <PageTitle>@Path.GetFileNameWithoutExtension(FileName)</PageTitle>
 
-@if(!string.IsNullOrEmpty(ViewOnly))
+@if(!string.IsNullOrEmpty(ViewOnly) && !Auth)
 {
     @((MarkupString)Markdown.ToHtml(FileData, pipeline))
 }
 else if(Auth)
 {
     <div class="h-100">
-        <h1 style="position: absolute; top: 10px; left: 10px;">@Path.GetFileNameWithoutExtension(FileName)<a class="btn btn-sm btn-primary" href="/view/@HttpUtility.UrlEncode(Hash)/View">Link</a></h1>
+        <h1 style="position: absolute; top: 10px; left: 10px;">@Path.GetFileNameWithoutExtension(FileName)<a class="btn btn-sm btn-primary" href="/view/@HttpUtility.UrlEncode(Hash)/View">Link</a><a href="/view/@HttpUtility.UrlEncode(Hash)/@ProperLoginCode" class="btn btn-danger btn-sm">Key: @ProperLoginCode</a></h1>
         <div class="row h-100" style="margin-top: 60px;">
             <div class="col">
                 <textarea class="form-control" style="height: 100%;" @bind="FileData" @oninput="ChangeData"></textarea>
@@ -38,7 +38,7 @@ else
 
 @code
 {
-    private bool Auth = true;
+    private bool Auth = false;
     private string LoginCode = string.Empty;
     [Parameter]
     public string Hash { get; set; } = string.Empty;
@@ -47,7 +47,7 @@ else
     private string FileName = string.Empty;
 
     private string FileData = string.Empty;
-
+    private string ProperLoginCode = string.Empty;
     MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
 
@@ -64,6 +64,12 @@ else
         }
 
         FileData = File.ReadAllText(FileName);
+        ProperLoginCode = Convert.ToBase64String(HashAlgorithm.Create("SHA256").ComputeHash(System.Text.Encoding.UTF8.GetBytes(FileName + Settings.PasswordSalt)))[0..4];
+
+        if(ViewOnly == ProperLoginCode)
+        {
+            Auth = true;
+        }
 
         ChangeMonitor.RegisterListener(this);
 
@@ -81,7 +87,9 @@ else
 
     private void Login()
     {
-        Auth = true;
+        if(LoginCode == ProperLoginCode)
+            Auth = true;
+        InvokeAsync(StateHasChanged);
     }
 
 
