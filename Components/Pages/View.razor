@@ -1,0 +1,96 @@
+﻿@page "/view/{Hash}/{ViewOnly?}"
+@implements IDisposable
+@implements Listener;
+@using System.Security.Cryptography
+@using Markdig;
+@using System.Web
+@inject Settings Settings;
+@inject ChangeMonitor ChangeMonitor;
+
+<PageTitle>@Path.GetFileNameWithoutExtension(FileName)</PageTitle>
+
+@if(!string.IsNullOrEmpty(ViewOnly))
+{
+    @((MarkupString)Markdown.ToHtml(FileData))
+}
+else if(Auth)
+{
+    <div class="h-100">
+        <h1 style="position: absolute; top: 10px; left: 10px;">@Path.GetFileNameWithoutExtension(FileName)<a class="btn btn-sm btn-primary" href="/view/@HttpUtility.UrlEncode(Hash)/View">Link</a></h1>
+        <div class="row h-100" style="margin-top: 60px;">
+            <div class="col">
+                <textarea class="form-control" style="height: 100%;" @bind="FileData" @oninput="ChangeData"></textarea>
+            </div>
+            <div class="col border">
+                @((MarkupString)Markdown.ToHtml(FileData))
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <h1>Login</h1>
+    <form @onsubmit="Login">
+        <input type="password" class="form-control" @bind="LoginCode" />
+        <input type="submit" value="Login" class="btn btn-primary form-control" />
+    </form>
+}
+
+@code
+{
+    private bool Auth = true;
+    private string LoginCode = string.Empty;
+    [Parameter]
+    public string Hash { get; set; } = string.Empty;
+    [Parameter]
+    public string? ViewOnly { get; set; } = string.Empty;
+    private string FileName = string.Empty;
+
+    private string FileData = string.Empty;
+
+    protected override Task OnInitializedAsync()
+    {
+        foreach (var file in Directory.GetFiles("notes"))
+        {
+            var code = Convert.ToBase64String(HashAlgorithm.Create("SHA256").ComputeHash(System.Text.Encoding.UTF8.GetBytes(file + Settings.UrlSalt)));
+            if(Hash == code)
+            {
+                FileName = file;
+                break;
+            }
+        }
+
+        FileData = File.ReadAllText(FileName);
+
+        ChangeMonitor.RegisterListener(this);
+
+        return base.OnInitializedAsync();
+    }
+
+    private void ChangeData(ChangeEventArgs e)
+    {
+        FileData = e.Value as String;
+        lock (FileName)
+            File.WriteAllText(FileName, FileData);
+        ChangeMonitor.TriggerChange(this);
+
+    }
+
+    private void Login()
+    {
+        Auth = true;
+    }
+
+
+    public void Dispose()
+    {
+        ChangeMonitor.UnregisterListener(this);
+    }
+
+    public void OnChange()
+    {
+        lock (FileName)
+            FileData = File.ReadAllText(FileName);
+        InvokeAsync(StateHasChanged);
+    }
+}

@@ -1,0 +1,64 @@
+﻿@page "/"
+@using System.Security.Cryptography
+@using System.Web
+@inject Settings Settings;
+
+<PageTitle>Home</PageTitle>
+
+@if(AdminAuth)
+{
+    <h1>Notes</h1>
+
+    <ul class="list-group">
+        @foreach(var file in Directory.GetFiles("notes"))
+        {
+            <a class="list-group-item" href="/view/@(HttpUtility.UrlEncode(Convert.ToBase64String(HashAlgorithm.Create("SHA256").ComputeHash(System.Text.Encoding.UTF8.GetBytes(file+Settings.UrlSalt)))))">
+                @file
+                <span class="badge badge-primary bg-primary">@(Convert.ToBase64String(HashAlgorithm.Create("SHA256").ComputeHash(System.Text.Encoding.UTF8.GetBytes(file + Settings.PasswordSalt)))[0..4])</span>
+            </a>
+        }
+    </ul>
+
+    <form @onsubmit="Add">
+        <div class="input-group">
+            <input class="form-control" @bind="NewName" />
+            <input type="submit" value="Add" class="btn btn-primary"/>
+        </div>
+    </form>
+}
+else
+{
+    <h1>Login</h1>
+    <form @onsubmit="Login">
+        <input class="form-control" @bind="Username" />
+        <input type="password" class="form-control" @bind="Password" />
+        <input type="submit" value="Login" class="btn btn-primary form-control" />
+    </form>
+
+}
+
+@code
+{
+    private bool AdminAuth = false;
+    private string NewName = string.Empty;
+    private string Username = string.Empty;
+    private string Password = string.Empty;
+
+    private void Add()
+    {
+        File.WriteAllText(Path.Combine("notes", NewName + ".md"), "# " + NewName);
+        NewName = "";
+    }
+
+    private void Login()
+    {
+        if(Username == Settings.AdminUser && Password == Settings.AdminPassword)
+        {
+            AdminAuth = true;
+        }
+    }
+
+
+
+
+}
