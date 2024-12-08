@@ -11,7 +11,7 @@
 
 @if(!string.IsNullOrEmpty(ViewOnly))
 {
-    @((MarkupString)Markdown.ToHtml(FileData))
+    @((MarkupString)Markdown.ToHtml(FileData, pipeline))
 }
 else if(Auth)
 {
@@ -22,7 +22,7 @@ else if(Auth)
                 <textarea class="form-control" style="height: 100%;" @bind="FileData" @oninput="ChangeData"></textarea>
             </div>
             <div class="col border">
-                @((MarkupString)Markdown.ToHtml(FileData))
+                @((MarkupString)Markdown.ToHtml(FileData, pipeline))
             </div>
         </div>
     </div>
@@ -47,6 +47,9 @@ else
     private string FileName = string.Empty;
 
     private string FileData = string.Empty;
+
+    MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
 
     protected override Task OnInitializedAsync()
     {
